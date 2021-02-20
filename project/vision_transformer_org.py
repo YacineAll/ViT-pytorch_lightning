@@ -11,12 +11,13 @@ import torchvision.transforms as transforms
 from einops import rearrange, repeat
 
 
-
 MIN_NUM_PATCHES = 16
+
 
 class AddPositionEmbs(nn.Module):
     """Adds (optionally learned) positional embeddings to the inputs."""
-    def __init__(self, num_patches:int, dim:int, dropout_rate:float=.0):
+
+    def __init__(self, num_patches: int, dim: int, dropout_rate: float = .0):
         super(AddPositionEmbs, self).__init__()
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
         self.dropout = nn.Dropout(dropout_rate, inplace=True) if dropout_rate > 0 else None
@@ -28,13 +29,14 @@ class AddPositionEmbs(nn.Module):
 
 class MlpBlock(nn.Module):
     """Transformer MLP / feed-forward block."""
-    def __init__(self, in_dim:int, mlp_dim:int, out_dim:int, dropout_rate:float = 0.1):
+
+    def __init__(self, in_dim: int, mlp_dim: int, out_dim: int, dropout_rate: float = 0.1):
         super(MlpBlock, self).__init__()
         self.fc1 = self.__init_weights(nn.Linear(in_dim, mlp_dim))
         self.fc2 = self.__init_weights(nn.Linear(mlp_dim, in_dim))
         self.act = nn.GELU()
-        self.dropout1, self.dropout2 = (nn.Dropout(dropout_rate, inplace=True), nn.Dropout(dropout_rate, inplace=True)) if dropout_rate > 0 else (None, None)
-
+        self.dropout1, self.dropout2 = (nn.Dropout(dropout_rate, inplace=True), nn.Dropout(
+            dropout_rate, inplace=True)) if dropout_rate > 0 else (None, None)
 
     def forward(self, x):
         """Applies Transformer MlpBlock module."""
@@ -51,21 +53,20 @@ class MlpBlock(nn.Module):
         return layer
 
 
-
 class MultiHeadSelfAttention(nn.Module):
     """Some Information about MultiHeadSelfAttention"""
-    def __init__(self, dim:int, num_heads:int, dropout_rate:float=0.):
+
+    def __init__(self, dim: int, num_heads: int, dropout_rate: float = 0.):
         super(MultiHeadSelfAttention, self).__init__()
-        d_h = dim//num_heads
+        d_h = dim // num_heads
         self.num_heads = num_heads
         self.scale = dim ** -0.5
 
-        self.to_qkv = nn.Linear(in_features=dim, out_features=self.num_heads*d_h*3)
+        self.to_qkv = nn.Linear(in_features=dim, out_features=self.num_heads * d_h * 3)
 
-        self.out   = nn.Linear(in_features=self.num_heads*d_h, out_features=dim)
+        self.out = nn.Linear(in_features=self.num_heads * d_h, out_features=dim)
 
         self.dropout = nn.Dropout(dropout_rate, inplace=True) if dropout_rate > 0 else None
-
 
     def forward(self, x, mask=None, need_weights=False):
         x = self.to_qkv(x).chunk(3, dim=-1)
@@ -74,13 +75,11 @@ class MultiHeadSelfAttention(nn.Module):
 
         mask_value = -torch.finfo(dots.dtype).max
         if mask is not None:
-            mask = F.pad(mask.flatten(1), (1, 0), value = True)
+            mask = F.pad(mask.flatten(1), (1, 0), value=True)
             assert mask.shape[-1] == dots.shape[-1], 'mask has incorrect dimensions'
             mask = mask[:, None, :] * mask[:, :, None]
             dots.masked_fill_(~mask, mask_value)
             del mask
-
-
 
         attn = dots.softmax(dim=-1)
         out = torch.einsum('bhij,bhjd->bhid', attn, v)
@@ -92,12 +91,14 @@ class MultiHeadSelfAttention(nn.Module):
             return out, attn
         return out
 
+
 class Encoder1DBlock(nn.Module):
     """Transformer encoder layer."""
-    def __init__(self, in_dim:int, mlp_dim:int, num_heads:int, dropout_rate:float=0.1, attn_dropout_rate:float=0.1):
+
+    def __init__(self, in_dim: int, mlp_dim: int, num_heads: int, dropout_rate: float = 0.1, attn_dropout_rate: float = 0.1):
         super(Encoder1DBlock, self).__init__()
         self.norm1 = nn.LayerNorm(in_dim)
-        self.attn  = MultiHeadSelfAttention(dim=in_dim, num_heads=num_heads, dropout_rate=attn_dropout_rate)
+        self.attn = MultiHeadSelfAttention(dim=in_dim, num_heads=num_heads, dropout_rate=attn_dropout_rate)
         self.dropout = nn.Dropout(dropout_rate, inplace=True) if dropout_rate > 0 else None
         self.norm2 = nn.LayerNorm(in_dim)
         self.mlp = MlpBlock(in_dim=in_dim, mlp_dim=mlp_dim, out_dim=in_dim, dropout_rate=dropout_rate)
@@ -116,15 +117,17 @@ class Encoder1DBlock(nn.Module):
         x += residual
         return x
 
+
 class Encoder(nn.Module):
     """Transformer Model Encoder for sequence to sequence translation."""
-    def __init__(self, num_patches:int, emb_dim:int, mlp_dim:int, num_layers:int=12, num_heads:int=12, dropout_rate:float=0.1, attn_dropout_rate:float=0.0):
+
+    def __init__(self, num_patches: int, emb_dim: int, mlp_dim: int, num_layers: int = 12, num_heads: int = 12, dropout_rate: float = 0.1, attn_dropout_rate: float = 0.0):
         super(Encoder, self).__init__()
         self.pos_embedding = AddPositionEmbs(num_patches, emb_dim, dropout_rate)
         in_dim = emb_dim
         self.encoder_layers = nn.Sequential()
 
-        for  i in range(num_layers):
+        for i in range(num_layers):
             layer = Encoder1DBlock(
                 in_dim=in_dim,
                 mlp_dim=mlp_dim,
@@ -136,7 +139,6 @@ class Encoder(nn.Module):
 
         self.norm = nn.LayerNorm(in_dim)
 
-
     def forward(self, x):
         x = self.pos_embedding(x)
         x = self.encoder_layers(x)
@@ -144,23 +146,21 @@ class Encoder(nn.Module):
         return x
 
 
-
-
-
 class VisionTransformer(nn.Module):
     """VisionTransformer."""
+
     def __init__(self,
-                image_size:Tuple[int, int]=(224, 224),
-                channels:int=3,
-                patch_size:Tuple[int, int]=(16, 16),
-                emb_dim:int=1024,
-                mlp_dim:int=2048,
-                num_heads:int=16,
-                num_layers:int=24,
-                num_classes:int=10,
-                attn_dropout_rate:float=0.0,
-                dropout_rate:float=0.1,
-                resnet:bool=False,
+                image_size: Tuple[int, int] = (224, 224),
+                channels: int = 3,
+                patch_size: Tuple[int, int] = (16, 16),
+                emb_dim: int = 1024,
+                mlp_dim: int = 2048,
+                num_heads: int = 16,
+                num_layers: int = 24,
+                num_classes: int = 10,
+                attn_dropout_rate: float = 0.0,
+                dropout_rate: float = 0.1,
+                resnet: bool = False,
     ):
         """Vision Transformer https://arxiv.org/abs/2010.11929
 
@@ -185,7 +185,7 @@ class VisionTransformer(nn.Module):
         num_patches = gh * gw
         assert num_patches > MIN_NUM_PATCHES, f'your number of patches ({num_patches}) is way too small for attention to be effective (at least 16). Try decreasing your patch size'
 
-        if resnet :
+        if resnet:
             resnet18 = torchvision.models.resnet18(pretrained=True)
             self.embedding = nn.Sequential(
                 resnet18.conv1,
@@ -200,11 +200,11 @@ class VisionTransformer(nn.Module):
             for param in self.embedding.parameters():
                 param.requires_grad = False
 
-            num_patches = 7*7
+            num_patches = 7 * 7
             emb_dim = 512
 
         else:
-            self.embedding = nn.Linear(channels*self.fh*self.fw, emb_dim)
+            self.embedding = nn.Linear(channels * self.fh * self.fw, emb_dim)
             # self.embedding = nn.Conv2d( 3, emb_dim, kernel_size=(fh, fw), stride=(fh, fw))
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, emb_dim))
@@ -220,18 +220,18 @@ class VisionTransformer(nn.Module):
 
         self.classifier = nn.Linear(emb_dim, num_classes)
 
-
     def forward(self, x):
-        x = rearrange(x, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = self.fh, p2 = self.fw)
+        x = rearrange(x, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=self.fh, p2=self.fw)
 
         x = self.embedding(x)
 
-        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b=x.shape[0]) # cls_token ==> shape (batch_size, 1, emb_dim)
+        # cls_token ==> shape (batch_size, 1, emb_dim)
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b=x.shape[0])
 
-        x = torch.cat([cls_tokens, x], dim=1) # x (batch_size, num_patch+1, emb_dim)
+        x = torch.cat([cls_tokens, x], dim=1)  # x (batch_size, num_patch+1, emb_dim)
 
         x = self.transformer(x)
 
-        x = self.classifier(x[:, 0]) # x (batch_size, num_classes)
+        x = self.classifier(x[:, 0])  # x (batch_size, num_classes)
 
         return x
