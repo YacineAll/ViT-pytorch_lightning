@@ -30,23 +30,22 @@ dir=$1
 mkdir -p "${dir}/cifar10"
 mkdir -p "${dir}/model"
 
-python    lit_image_classifier.py \
+python    main.py \
 	--fit\
-	--gpus -1\
         --default_root_dir "${dir}/model" \
-        --learning_rate 0.001\
         --data_path "${dir}/cifar10"\
-        --batch_size 10\
-	--t_max 50\
-        --image_size 256\
-        --num_workers 14\
-        --patch_size 16\
-        --emb_dim 768\
-        --mlp_dim 2048\
-        --num_heads 32\
-        --num_layers 12\
+        --learning_rate 0.001\
+        --val_size 0.01\
+        --batch_size 16\
+        --image_size 32\
+        --num_workers 8\
+        --patch_size 4\
+        --emb_dim 64\
+        --mlp_dim 128\
+        --num_heads 4\
+        --num_layers 1\
         --num_classes 10 \
         --attn_dropout_rate 0.0 \
         --dropout_rate 0.3 \
-        --progress_bar_refresh_rate 20 \
+        --progress_bar_refresh_rate 25 \
 #        --resume_from_checkpoint $2\
