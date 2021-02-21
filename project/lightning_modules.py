@@ -11,13 +11,14 @@ from torch.utils.data import random_split, DataLoader, Dataset
 from torchvision.datasets import CIFAR10
 from pytorch_lightning.metrics.functional import accuracy
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
-
+from tools import LabelSmoothingLoss
 
 class LitClassifierModel(pl.LightningModule):
 
     def __init__(self, backbone, **kwargs):
         super().__init__()
         self.save_hyperparameters(kwargs)
+        self.criterion = LabelSmoothingLoss(kwargs['num_classes'], smoothing=0.2)
         self.backbone = backbone
 
     def forward(self, x):
@@ -27,7 +28,8 @@ class LitClassifierModel(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         logits = self(x)
-        loss = F.cross_entropy(logits, y)
+        # loss = F.cross_entropy(logits, y)
+        loss = self.criterion(logits, y)
         y_hat = torch.argmax(logits, dim=1)
         acc = accuracy(y_hat, y)
         self.log('train_loss', loss, prog_bar=False)
@@ -37,7 +39,8 @@ class LitClassifierModel(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         logits = self(x)
-        loss = F.cross_entropy(logits, y)
+        # loss = F.cross_entropy(logits, y)
+        loss = self.criterion(logits, y)
         y_hat = torch.argmax(logits, dim=1)
         acc = accuracy(y_hat, y)
         self.log('val_loss', loss, prog_bar=True)
@@ -47,7 +50,8 @@ class LitClassifierModel(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         x, y = batch
         logits = self(x)
-        loss = F.cross_entropy(logits, y)
+        # loss = F.cross_entropy(logits, y)
+        loss = self.criterion(logits, y)
         y_hat = torch.argmax(logits, dim=1)
         acc = accuracy(y_hat, y)
         return {'test_loss': loss, 'test_acc': acc}
