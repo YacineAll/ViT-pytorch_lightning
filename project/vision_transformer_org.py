@@ -160,7 +160,7 @@ class VisionTransformer(nn.Module):
                 num_classes: int = 10,
                 attn_dropout_rate: float = 0.0,
                 dropout_rate: float = 0.1,
-                resnet: bool = False,
+                embedding_mode: str = "linear",
                 **kwargs,
     ):
         """Vision Transformer https://arxiv.org/abs/2010.11929
@@ -175,6 +175,7 @@ class VisionTransformer(nn.Module):
             num_classes (int, optional): Number of class in out. Defaults to 10.
             attn_dropout_rate (float, optional): Attention dropout. Defaults to 0.0.
             dropout_rate (float, optional): dropout rate of all layers and Embedding. Defaults to 0.1.
+            embedding_mode (str, optional): `linear`, `resnet`, `conv`. Default: `linear`
         """
 
         super(VisionTransformer, self).__init__()
@@ -195,7 +196,10 @@ class VisionTransformer(nn.Module):
         num_patches = gh * gw
         assert num_patches > MIN_NUM_PATCHES, f'your number of patches ({num_patches}) is way too small for attention to be effective (at least 16). Try decreasing your patch size'
 
-        if resnet:
+        self.embedding_mode = embedding_mode
+        self.embedding = nn.Linear(channels * self.fh * self.fw, emb_dim)
+
+        if self.embedding_mode == 'resnet':
             resnet18 = torchvision.models.resnet18(pretrained=True)
             self.embedding = nn.Sequential(
                 resnet18.conv1,
@@ -213,9 +217,8 @@ class VisionTransformer(nn.Module):
             num_patches = 7 * 7
             emb_dim = 512
 
-        else:
-            self.embedding = nn.Linear(channels * self.fh * self.fw, emb_dim)
-            # self.embedding = nn.Conv2d( 3, emb_dim, kernel_size=(fh, fw), stride=(fh, fw))
+        if self.embedding_mode == "conv":
+            self.embedding = nn.Conv2d( 3, emb_dim, kernel_size=(self.fh, self.fw), stride=(self.fh, self.fw))
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, emb_dim))
         self.transformer = Encoder(
@@ -231,9 +234,13 @@ class VisionTransformer(nn.Module):
         self.classifier = nn.Linear(emb_dim, num_classes)
 
     def forward(self, x):
-        x = rearrange(x, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=self.fh, p2=self.fw)
+        if self.embedding_mode == "conv" or self.embedding_mode == "resnet":
+            x = self.embedding(x) # x (batch_size, in_channel, img_heigh, img_width)
+            x = rearrange( x, 'b c gh gw -> b (gh gw) c') # x (batch_size, num_patch, emb_dim)
 
-        x = self.embedding(x)
+        if self.embedding_mode == "linear":
+            x = rearrange(x, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=self.fh, p2=self.fw)
+            x = self.embedding(x)
 
         # cls_token ==> shape (batch_size, 1, emb_dim)
         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b=x.shape[0])

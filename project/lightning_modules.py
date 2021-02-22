@@ -87,7 +87,7 @@ class LitClassifierModel(pl.LightningModule):
 
 
 class CIFAR10DataModule(pl.LightningDataModule):
-    def __init__(self, data_dir: str = './', image_size: int = 512, batch_size: int = 128, num_workers: int = 12, val_size: float = 0.2):
+    def __init__(self, data_dir: str = './', image_size: int = 512, batch_size: int = 128, num_workers: int = 12, val_size: float = 0.2, **kwargs):
         super().__init__()
         self.data_dir = data_dir
 
