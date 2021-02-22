@@ -119,7 +119,7 @@ class CIFAR10DataModule(pl.LightningDataModule):
         ])
 
         self.transform_test = transforms.Compose([
-            transforms.CenterCrop(image_size),
+            transforms.Resize(image_size),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
@@ -155,6 +155,74 @@ class CIFAR10DataModule(pl.LightningDataModule):
 
     def test_dataloader(self):
         return DataLoader(self.cifar10_test, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+
+class CIFAR100DataModule(pl.LightningDataModule):
+    def __init__(self, data_dir: str = './', image_size: int = 512, batch_size: int = 128, num_workers: int = 12, val_size: float = 0.2, **kwargs):
+        super().__init__()
+        self.data_dir = data_dir
+
+        # self.transform_train = transforms.Compose([
+        #     transforms.RandomResizedCrop(image_size),
+        #     transforms.RandomHorizontalFlip(),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        #     transforms.RandomErasing(),
+        # ])
+
+        # self.transform_test = transforms.Compose([
+        #     transforms.Resize(image_size+32),
+        #     transforms.CenterCrop(image_size),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        # ])
+
+        self.transform_train = transforms.Compose([transforms.RandomHorizontalFlip(),
+                    transforms.Resize(image_size),
+                    transforms.RandomCrop(image_size, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[n/255.
+                    for n in [129.3, 124.1, 112.4]], std=[n/255. for n in [68.2,  65.4,  70.4]])
+        ])
+
+        self.transform_test = transforms.Compose([
+            transforms.Resize(image_size)
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[n/255. for n in [129.3, 124.1, 112.4]], std=[n/255. for n in [68.2,  65.4,  70.4]])
+        ])
+
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.val_size = val_size
+
+        self.dims = (3, image_size, image_size)
+
+    def prepare_data(self):
+        # download
+        CIFAR10(root=self.data_dir, train=True, download=True)
+        CIFAR10(root=self.data_dir, train=False, download=True)
+
+    def setup(self, stage: str = None):
+
+        # Assign train/val datasets for use in dataloaders
+        if stage == 'fit' or stage is None:
+            val_size = int(50000 * self.val_size)
+            cifar10_full = CIFAR10(self.data_dir, train=True, transform=self.transform_train)
+            self.cifar10_train, self.cifar10_val = random_split(cifar10_full, [50000 - val_size, val_size])
+
+        # Assign test dataset for use in dataloader(s)
+        if stage == 'test' or stage is None:
+            self.cifar10_test = CIFAR10(self.data_dir, train=False, transform=self.transform_test)
+
+    def train_dataloader(self):
+        return DataLoader(self.cifar10_train, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
+
+    def val_dataloader(self):
+        return DataLoader(self.cifar10_val, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+
+    def test_dataloader(self):
+        return DataLoader(self.cifar10_test, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
+
 
 def load_from_checkpoint(model_class:type, lit_model:type, hparams_file: str, checkpoint_file:str):
     hparams = pl.core.saving.load_hparams_from_yaml(hparams_file)
