@@ -18,7 +18,7 @@ class LitClassifierModel(pl.LightningModule):
     def __init__(self, backbone, **kwargs):
         super().__init__()
         self.save_hyperparameters(kwargs)
-        self.criterion = LabelSmoothingLoss(kwargs['num_classes'], smoothing=0.2)
+        self.criterion = LabelSmoothingLoss(kwargs['num_classes'], smoothing=0.1)
         self.backbone = backbone
 
     def forward(self, x):
