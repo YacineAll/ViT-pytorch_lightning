@@ -57,7 +57,11 @@ class LitClassifierModel(pl.LightningModule):
         return {'test_loss': loss, 'test_acc': acc}
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams.learning_rate)
+        optimizer = torch.optim.Adam(
+            self.parameters(),
+            lr=self.hparams.learning_rate,
+            weight_decay=self.hparams.weight_decay,
+        )
         return {
             'optimizer': optimizer,
             'lr_scheduler': torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -68,7 +72,7 @@ class LitClassifierModel(pl.LightningModule):
                 min_lr=1e-8,
                 verbose=True
             ),
-
+            'interval': 'step',
             'monitor': 'train_loss'
         }
 
@@ -91,22 +95,31 @@ class CIFAR10DataModule(pl.LightningDataModule):
         super().__init__()
         self.data_dir = data_dir
 
+        # self.transform_train = transforms.Compose([
+        #     transforms.RandomResizedCrop(image_size),
+        #     transforms.RandomHorizontalFlip(),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        #     transforms.RandomErasing(),
+        # ])
+
+        # self.transform_test = transforms.Compose([
+        #     transforms.Resize(image_size+32),
+        #     transforms.CenterCrop(image_size),
+        #     transforms.ToTensor(),
+        #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        # ])
+
         self.transform_train = transforms.Compose([
             transforms.Resize(image_size),
             transforms.RandomCrop(image_size, padding=4),
             transforms.RandomHorizontalFlip(),
-            transforms.RandomChoice([
-                transforms.ColorJitter(hue=.05, saturation=.05),
-                transforms.RandomRotation(2.8),
-                transforms.GaussianBlur(kernel_size=11, sigma=(0.1, 2.0)),
-            ]),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-            transforms.RandomErasing(),
         ])
 
         self.transform_test = transforms.Compose([
-            transforms.Resize(image_size),
+            transforms.CenterCrop(image_size),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
