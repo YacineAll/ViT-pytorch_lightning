@@ -13,6 +13,10 @@ from pytorch_lightning.metrics.functional import accuracy
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from tools import LabelSmoothingLoss
 
+"""
+Pour l'entrainement de notre modele on utilise pytorch-lightning pour faciliter l'implimentation et optimisation des fonctions d'entrainements.
+"""
+
 class LitClassifierModel(pl.LightningModule):
 
     def __init__(self, backbone, **kwargs):
@@ -91,25 +95,11 @@ class LitClassifierModel(pl.LightningModule):
 
 
 class CIFAR10DataModule(pl.LightningDataModule):
+    """CIFAR 10 DATASET
+    """
     def __init__(self, data_dir: str = './', image_size: int = 512, batch_size: int = 128, num_workers: int = 12, val_size: float = 0.2, **kwargs):
         super().__init__()
         self.data_dir = data_dir
-
-        # self.transform_train = transforms.Compose([
-        #     transforms.RandomResizedCrop(image_size),
-        #     transforms.RandomHorizontalFlip(),
-        #     transforms.ToTensor(),
-        #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        #     transforms.RandomErasing(),
-        # ])
-
-        # self.transform_test = transforms.Compose([
-        #     transforms.Resize(image_size+32),
-        #     transforms.CenterCrop(image_size),
-        #     transforms.ToTensor(),
-        #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        # ])
-
         self.transform_train = transforms.Compose([
             transforms.Resize(image_size),
             transforms.RandomCrop(image_size, padding=4),
@@ -157,24 +147,12 @@ class CIFAR10DataModule(pl.LightningDataModule):
         return DataLoader(self.cifar10_test, batch_size=self.batch_size, shuffle=False, num_workers=self.num_workers)
 
 class CIFAR100DataModule(pl.LightningDataModule):
+    """CIFAR 100 DATASET
+    """
+
     def __init__(self, data_dir: str = './', image_size: int = 512, batch_size: int = 128, num_workers: int = 12, val_size: float = 0.2, **kwargs):
         super().__init__()
         self.data_dir = data_dir
-
-        # self.transform_train = transforms.Compose([
-        #     transforms.RandomResizedCrop(image_size),
-        #     transforms.RandomHorizontalFlip(),
-        #     transforms.ToTensor(),
-        #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        #     transforms.RandomErasing(),
-        # ])
-
-        # self.transform_test = transforms.Compose([
-        #     transforms.Resize(image_size+32),
-        #     transforms.CenterCrop(image_size),
-        #     transforms.ToTensor(),
-        #     transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        # ])
 
         self.transform_train = transforms.Compose([transforms.RandomHorizontalFlip(),
                     transforms.Resize(image_size),

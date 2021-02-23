@@ -1,10 +1,10 @@
 from typing import TypeVar, Union, Tuple, Optional
+from torch.utils.data import DataLoader, Dataset, random_split
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset, random_split
 import torchvision
 import torchvision.transforms as transforms
 
@@ -56,9 +56,11 @@ class MlpBlock(nn.Module):
 class MultiHeadSelfAttention(nn.Module):
     """Some Information about MultiHeadSelfAttention"""
 
-    def __init__(self, dim: int, num_heads: int, dropout_rate: float = 0.):
+    def __init__(self, dim: int, num_heads: int, dropout_rate: float = 0., d_h:int=None):
         super(MultiHeadSelfAttention, self).__init__()
-        d_h = dim // num_heads
+        if not d_h:
+            d_h = dim // num_heads
+
         self.num_heads = num_heads
         self.scale = dim ** -0.5
 
