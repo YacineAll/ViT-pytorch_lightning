@@ -1,10 +1,9 @@
-
 import torch
 import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as transforms
 import pytorch_lightning as pl
-
+import numpy as np
 
 from argparse import ArgumentParser
 from torch.utils.data import random_split, DataLoader, Dataset
@@ -51,6 +50,7 @@ class LitClassifierModel(pl.LightningModule):
         self.log('val_acc', acc, prog_bar=True)
         return loss
 
+
     def test_step(self, batch, batch_idx):
         x, y = batch
         logits = self(x)
@@ -59,6 +59,22 @@ class LitClassifierModel(pl.LightningModule):
         y_hat = torch.argmax(logits, dim=1)
         acc = accuracy(y_hat, y)
         return {'test_loss': loss, 'test_acc': acc}
+
+
+    def test_epoch_end(self, outputs):
+        # for test_epoch_end showcase, we record batch mse and batch std
+
+        loss, acc = zip(*[(d['test_loss'], d['test_acc']) for d in outputs])
+
+        avg_loss, avg_acc = np.mean(loss), np.mean(acc)
+        std_loss, std_acc = np.std(loss), np.std(acc)
+
+        result = {
+            'loss': {'avg': avg_loss, 'std': std_loss},
+            'acc': {'avg': avg_acc, 'std': std_acc}
+            }
+        self.log_dict(result)
+        return result
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
@@ -164,7 +180,7 @@ class CIFAR100DataModule(pl.LightningDataModule):
         ])
 
         self.transform_test = transforms.Compose([
-            transforms.Resize(image_size)
+            transforms.Resize(image_size),
             transforms.ToTensor(),
             transforms.Normalize(mean=[n/255. for n in [129.3, 124.1, 112.4]], std=[n/255. for n in [68.2,  65.4,  70.4]])
         ])

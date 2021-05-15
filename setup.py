@@ -5,11 +5,11 @@ from setuptools import setup, find_packages
 setup(
     name='project',
     version='0.0.0',
-    description='Describe Your Cool Project',
+    description='ViT transformer with pytorch lightning',
     author='',
     author_email='',
     # REPLACE WITH YOUR OWN GITHUB PROJECT LINK
-    url='https://github.com/PyTorchLightning/pytorch-lightning-conference-seed',
+    url='https://github.com/YacineAll/ViT-pytorch_lightning',
     install_requires=['pytorch-lightning'],
     packages=find_packages(),
 )

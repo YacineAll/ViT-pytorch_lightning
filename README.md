@@ -3,29 +3,20 @@ Use this seed to start new deep learning / ML projects.
 
 - Built in setup.py
 - Built in requirements
-- Examples with MNIST
-- Badges
-- Bibtex
+- Examples with CIFAR10
 
-#### Goals  
-The goal of this seed is to structure ML paper-code the same so that work can easily be extended and replicated.   
+#### Goals
+The objective of this project is to produce the ViT model with PyTorchLightning in a university project
 
-### DELETE EVERYTHING ABOVE FOR YOUR PROJECT  
- 
 ---
 
 <div align="center">    
- 
-# Your Project Name     
 
-[![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://www.nature.com/articles/nature14539)
-[![Conference](http://img.shields.io/badge/NeurIPS-2019-4b44ce.svg)](https://papers.nips.cc/book/advances-in-neural-information-processing-systems-31-2018)
-[![Conference](http://img.shields.io/badge/ICLR-2019-4b44ce.svg)](https://papers.nips.cc/book/advances-in-neural-information-processing-systems-31-2018)
-[![Conference](http://img.shields.io/badge/AnyConference-year-4b44ce.svg)](https://papers.nips.cc/book/advances-in-neural-information-processing-systems-31-2018)  
-<!--
-ARXIV   
-[![Paper](http://img.shields.io/badge/arxiv-math.co:1480.1111-B31B1B.svg)](https://www.nature.com/articles/nature14539)
--->
+# ViT Transformer PyTorchLightning
+
+[![Paper](https://img.shields.io/badge/paper-arxiv.2010.11929-B31B1B.svg)](https://arxiv.org/pdf/2010.11929.pdf)
+[![Conference](https://img.shields.io/badge/ICLR-2021-4b44ce.svg)](https://openreview.net/forum?id=YicbFdNTTy)
+
 ![CI testing](https://github.com/PyTorchLightning/deep-learning-project-template/workflows/CI%20testing/badge.svg?branch=master&event=push)
 
 
@@ -33,18 +24,16 @@ ARXIV
 Conference   
 -->   
 </div>
- 
-## Description   
-What it does   
+
 
 ## How to run   
 First, install dependencies   
 ```bash
 # clone project   
-git clone https://github.com/YourGithubName/deep-learning-project-template
+git clone https://github.com/YacineAll/ViT-pytorch_lightning.git
 
 # install project   
-cd deep-learning-project-template 
+cd ViT-pytorch_lightning.git
 pip install -e .   
 pip install -r requirements.txt
  ```   
@@ -54,36 +43,45 @@ pip install -r requirements.txt
 cd project
 
 # run module (example: mnist as your main contribution)   
-python lit_classifier_main.py    
+python __main__.py    
 ```
 
 ## Imports
 This project is setup as a package which means you can now easily import any file into any other file like so:
 ```python
+import argparse
+
+from project.vision_transformer import VisionTransformer, Embedding_mode
+from project.lightning_modules import CIFAR10DataModule,LitClassifierModel, load_from_checkpoint
+
 from project.datasets.mnist import mnist
 from project.lit_classifier_main import LitClassifier
 from pytorch_lightning import Trainer
 
-# model
-model = LitClassifier()
+args = argparse.Namespace(attn_dropout_rate=0.0, batch_size=32, data_dir='/tmp', default_root_dir='/tmp', dropout_rate=0.1, emb_dim=32, embedding_mode=Embedding_mode.linear, fit=True, gpus=0, image_size=32, learning_rate=0.0001, max_epochs=1, mlp_dim=64, num_classes=10, num_heads=12, num_layers=12, num_workers=8, patch_size=4, progress_bar_refresh_rate=25, val_size=0.2, weight_decay=0.01)
 
-# data
-train, val, test = mnist()
+datamodule = CIFAR10DataModule(**vars(args))
 
-# train
-trainer = Trainer()
-trainer.fit(model, train, val)
+vit_Backbone = VisionTransformer(**vars(args))
 
-# test using the best model!
-trainer.test(test_dataloaders=test)
-```
+checkpoint_callback = ModelCheckpoint(
+  monitor='val_acc',
+  filename='vit-{epoch:02d}-{val_loss:.2f}-{val_acc:.2f}',
+  mode='max',
+)
 
-### Citation   
-```
-@article{YourName,
-  title={Your Title},
-  author={Your team},
-  journal={Location},
-  year={Year}
-}
-```   
+lr_monitor = LearningRateMonitor(logging_interval='step')
+
+
+model = LitClassifierModel(vit_Backbone, **vars(args))
+
+logger = TestTubeLogger(args.default_root_dir, name='vit')
+
+trainer = pl.Trainer.from_argparse_args(args, accelerator='ddp', callbacks=[checkpoint_callback, lr_monitor], logger=[logger])
+
+trainer.fit(model,  datamodule)
+
+results = trainer.test(model=model, datamodule=datamodule)
+
+
+

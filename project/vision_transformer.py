@@ -1,5 +1,9 @@
 from typing import TypeVar, Union, Tuple, Optional
+from enum import Enum
+
 from torch.utils.data import DataLoader, Dataset, random_split
+
+from einops import rearrange, repeat
 
 import torch
 import torch.nn as nn
@@ -8,10 +12,18 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 
-from einops import rearrange, repeat
-
 
 MIN_NUM_PATCHES = 16
+
+
+class Embedding_mode(Enum):
+
+    linear='linear'
+    resnet='resnet'
+    conv='conv'
+
+    def __str__(self):
+        return self.value
 
 
 class AddPositionEmbs(nn.Module):
@@ -162,7 +174,7 @@ class VisionTransformer(nn.Module):
                 num_classes: int = 10,
                 attn_dropout_rate: float = 0.0,
                 dropout_rate: float = 0.1,
-                embedding_mode: str = "linear",
+                embedding_mode: Embedding_mode = Embedding_mode.linear,
                 **kwargs,
     ):
         """Vision Transformer https://arxiv.org/abs/2010.11929
@@ -201,7 +213,7 @@ class VisionTransformer(nn.Module):
         self.embedding_mode = embedding_mode
         self.embedding = nn.Linear(channels * self.fh * self.fw, emb_dim)
 
-        if self.embedding_mode == 'resnet':
+        if self.embedding_mode == Embedding_mode.resnet:
             resnet18 = torchvision.models.resnet18(pretrained=True)
             self.embedding = nn.Sequential(
                 resnet18.conv1,
@@ -219,7 +231,7 @@ class VisionTransformer(nn.Module):
             num_patches = 7 * 7
             emb_dim = 512
 
-        if self.embedding_mode == "conv":
+        if self.embedding_mode == Embedding_mode.conv:
             self.embedding = nn.Conv2d( 3, emb_dim, kernel_size=(self.fh, self.fw), stride=(self.fh, self.fw))
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, emb_dim))
@@ -236,11 +248,11 @@ class VisionTransformer(nn.Module):
         self.classifier = nn.Linear(emb_dim, num_classes)
 
     def forward(self, x):
-        if self.embedding_mode == "conv" or self.embedding_mode == "resnet":
+        if self.embedding_mode == Embedding_mode.conv or self.embedding_mode == Embedding_mode.resnet:
             x = self.embedding(x) # x (batch_size, in_channel, img_heigh, img_width)
             x = rearrange( x, 'b c gh gw -> b (gh gw) c') # x (batch_size, num_patch, emb_dim)
 
-        if self.embedding_mode == "linear":
+        if self.embedding_mode == Embedding_mode.linear:
             x = rearrange(x, 'b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1=self.fh, p2=self.fw)
             x = self.embedding(x)
 
